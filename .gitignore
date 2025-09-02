@@ -1,1 +1,18 @@
+# Python相关
+__pycache__/
+*.py[cod]
+*$py.class
 venv/
+.env
+*.log
+
+# 操作系统相关
+.DS_Store  # Mac
+Thumbs.db  # Windows
+
+# 项目临时文件
+resources/
+resources/temp/
+resources/*.log
+*.xlsx  # 避免导出的Excel进入版本控制（若需归档可移除该行）
+*.png   # 避免甘特图图片进入版本控制（若需归档可移除该行）
