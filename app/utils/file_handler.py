@@ -4,6 +4,7 @@
 # @File : file_handler.py
 
 import os
+from loguru import logger
 from typing import Optional
 import docx
 import pdfplumber
@@ -24,7 +25,7 @@ def read_file_content(file_path: str) -> Optional[str]:
         _, file_extension = os.path.splitext(file_path)
         file_extension = file_extension.lower()
 
-        print(f"尝试读取文件: {file_path}, 格式: {file_extension}")
+        logger.info(f"尝试读取文件: {file_path}, 格式: {file_extension}")
 
         if file_extension == '.txt':
             with open(file_path, 'r', encoding='utf-8') as f:
@@ -46,13 +47,13 @@ def read_file_content(file_path: str) -> Optional[str]:
             return full_text
 
         else:
-            print(f"错误: 不支持的文件格式 '{file_extension}'。目前仅支持 .txt, .docx, .pdf。")
+            logger.error(f"错误: 不支持的文件格式 '{file_extension}'。目前仅支持 .txt, .docx, .pdf。")
             return None
 
     except FileNotFoundError:
-        print(f"错误: 文件未找到 -> {file_path}")
+        logger.error(f"错误: 文件未找到 -> {file_path}")
         return None
     except Exception as e:
-        print(f"处理文件时发生错误: {e}")
+        logger.error(f"处理文件时发生错误: {e}")
         return None
 

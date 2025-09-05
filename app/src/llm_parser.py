@@ -6,6 +6,7 @@
 # app/src/llm_parser.py
 
 import json
+from loguru import logger
 from typing import List, Dict, Optional, Tuple, Set
 from openai import OpenAI
 from app.config import settings
@@ -88,16 +89,16 @@ def _parse_single_chunk(client: OpenAI, chunk_content: str, chunk_num: int, tota
         parsed_data = json.loads(json_content)
 
         if not isinstance(parsed_data, list):
-            print(f"警告: 第 {chunk_num} 部分返回的数据不是一个列表，已忽略。")
+            logger.warning(f"警告: 第 {chunk_num} 部分返回的数据不是一个列表，已忽略。")
             return None
 
         return parsed_data
 
     except json.JSONDecodeError:
-        print(f"警告: 第 {chunk_num} 部分返回的内容不是有效的JSON格式，已忽略。内容预览: '{json_content[:150]}...'")
+        logger.warning(f"警告: 第 {chunk_num} 部分返回的内容不是有效的JSON格式，已忽略。内容预览: '{json_content[:150]}...'")
         return None
     except Exception as e:
-        print(f"警告: 调用API处理第 {chunk_num} 部分时发生错误: {e}")
+        logger.error(f"警告: 调用API处理第 {chunk_num} 部分时发生错误: {e}")
         return None
 
 
@@ -124,7 +125,7 @@ def parse_schedule_from_text(file_content: str) -> Optional[List[Dict]]:
     对于长文本，会自动分块处理并对结果去重。
     """
     if not settings.MOONSHOT_API_KEY or settings.MOONSHOT_API_KEY == "YOUR_MOONSHOT_API_KEY_HERE":
-        print("错误: MOONSHOT_API_KEY 未设置。请在 app/config/settings.py 或环境变量中配置。")
+        logger.error("错误: MOONSHOT_API_KEY 未设置。请在 app/config/settings.py 或环境变量中配置。")
         return None
 
     client = OpenAI(api_key=settings.MOONSHOT_API_KEY, base_url=settings.MOONSHOT_BASE_URL)
@@ -137,12 +138,12 @@ def parse_schedule_from_text(file_content: str) -> Optional[List[Dict]]:
     total_chunks = len(text_chunks)
 
     if total_chunks > 1:
-        print(f"文本过长，已自动分割成 {total_chunks} 个部分进行处理。")
+        logger.info(f"文本过长，已自动分割成 {total_chunks} 个部分进行处理。")
 
     all_tasks = []
     for i, chunk in enumerate(text_chunks):
         if total_chunks > 1:
-            print(f"--- 正在处理第 {i + 1}/{total_chunks} 部分 ---")
+            logger.info(f"--- 正在处理第 {i + 1}/{total_chunks} 部分 ---")
 
         parsed_chunk = _parse_single_chunk(client, chunk, i + 1, total_chunks)
 
@@ -150,14 +151,14 @@ def parse_schedule_from_text(file_content: str) -> Optional[List[Dict]]:
             all_tasks.extend(parsed_chunk)
 
     if not all_tasks:
-        print("错误: 所有部分均未能成功解析或未提取到任何任务。")
+        logger.error("错误: 所有部分均未能成功解析或未提取到任何任务。")
         return None
 
-    print(f"\n所有部分处理完毕，共提取到 {len(all_tasks)} 个任务（去重前）。")
+    logger.info(f"\n所有部分处理完毕，共提取到 {len(all_tasks)} 个任务（去重前）。")
 
     # 对结果进行去重
     unique_tasks = _deduplicate_tasks(all_tasks)
 
-    print(f"去重后，最终获得 {len(unique_tasks)} 个独立任务。")
+    logger.info(f"去重后，最终获得 {len(unique_tasks)} 个独立任务。")
     return unique_tasks
 

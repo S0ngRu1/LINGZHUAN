@@ -87,7 +87,7 @@
             </div>
             <div id="loading" class="mt-4 items-center gap-3 hidden">
                 <div class="loader"></div>
-                <span class="text-blue-600 font-medium">解析中，请稍候... (当前为模拟过程)</span>
+                <span class="text-blue-600 font-medium">正在使用Kimi大模型解析中，请稍候... </span>
             </div>
             <p id="fileError" class="text-red-500 mt-2 text-sm hidden"></p>
         </div>
@@ -153,34 +153,59 @@ document.addEventListener('DOMContentLoaded', () => {
     const visualizationSection = document.getElementById('visualization-section');
     const ganttChartContainer = document.getElementById('gantt-chart-container');
 
-    const mockData = [
-        {"阶段": "项目启动", "工作子项": "需求分析与原型设计", "开始日期": "2025-10-01", "结束日期": "2025-10-05"},
-        {"阶段": "项目启动", "工作子项": "成立项目小组", "开始日期": "2025-10-03", "结束日期": "2025-10-04"},
-        {"阶段": "开发阶段", "工作子项": "前端UI开发", "开始日期": "2025-10-06", "结束日期": "2025-10-15"},
-        {"阶段": "开发阶段", "工作子项": "后端API开发", "开始日期": "2025-10-08", "结束日期": "2025-10-20"},
-        {"阶段": "测试阶段", "工作子项": "单元测试与集成测试", "开始日期": "2025-10-21", "结束日期": "2025-10-25"},
-        {"阶段": "项目收尾", "工作子项": "部署上线", "开始日期": "2025-10-28", "结束日期": "2025-10-28"},
-        {"阶段": "项目收尾", "工作子项": "编写用户手册", "开始日期": "2025-10-26", "结束日期": "2025-10-30"},
-    ];
-
     // Event Listeners
-    parseButton.addEventListener('click', () => {
-        if (!fileInput.files[0]) {
+    parseButton.addEventListener('click', async () => {
+        const file = fileInput.files[0];
+        if (!file) {
             fileError.textContent = '请先选择一个文件。';
             fileError.classList.remove('hidden');
             return;
         }
+        // --- 1. 准备工作 (显示加载动画等) ---
+        const loadingDiv = document.getElementById('loading');
+        const fileError = document.getElementById('fileError');
+        const dataTableBody = document.querySelector('#dataTable tbody');
+
         loadingDiv.style.display = 'flex';
+        fileError.classList.add('hidden');
         dataTableBody.innerHTML = '';
         previewButton.disabled = true;
         downloadButton.disabled = true;
-        visualizationSection.classList.add('hidden');
 
-        setTimeout(() => {
-            populateTable(mockData);
-            loadingDiv.style.display = 'none';
+        // --- 2. 创建 FormData 并添加文件 ---
+        // FormData 是一种特殊的对象，用于将文件和其他数据打包发送到服务器
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            // --- 3. 使用 fetch API 发送请求到后端 ---
+            const response = await fetch('http://127.0.0.1:5000/api/parse-file', {
+                method: 'POST', // 使用 POST 方法发送文件
+                body: formData,  // 将打包好的文件作为请求体
+            });
+
+            // --- 4. 处理后端的响应 ---
+            if (!response.ok) {
+                // 如果后端返回了错误 (例如 400, 500), 则解析错误信息并显示
+                const errorData = await response.json();
+                throw new Error(errorData.error || `HTTP 错误! 状态: ${response.status}`);
+            }
+
+            // 如果后端成功返回数据，则解析 JSON 数据
+            const parsedData = await response.json();
+            // 使用返回的真实数据填充表格
+            populateTable(parsedData);
             previewButton.disabled = false;
-        }, 1500);
+
+        } catch (error) {
+            // --- 5. 捕获并显示任何网络或解析错误 ---
+            console.error("解析文件时出错:", error);
+            fileError.textContent = `解析失败: ${error.message}`;
+            fileError.classList.remove('hidden');
+        } finally {
+            // --- 6. 无论成功失败，最后都隐藏加载动画 ---
+            loadingDiv.style.display = 'none';
+        }
     });
 
     addRowButton.addEventListener('click', () => {
