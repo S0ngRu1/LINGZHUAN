@@ -1,47 +1,46 @@
-from app.src.data_processor import process_work_data
-from app.src.gantt_drawer import draw_gantt_chart
-from app.src.excel_exporter import export_to_excel
-from app.utils.log_utils import logger
-from app.utils.file_utils import delete_dir_contents, TEMP_DIR
+# -*- coding: utf-8 -*-
+# @Time : 2025/9/5 17:49
+# @Author : CSR
+# @File : main.py
+
+import os
+from app.utils.file_handler import read_file_content
+from app.src.llm_parser import parse_schedule_from_text
+from app.src.gantt_generator import create_gantt_chart
+from app.config import settings
 
 
 def main():
-    logger.info("=" * 60)
-    logger.info("【绩效评价甘特图生成工具】程序启动")
-    logger.info("=" * 60)
-    try:
-        logger.info("开始执行数据处理...")
-        processed_data = process_work_data()
-        logger.info(f"数据处理完成，共包含 {len(processed_data)} 个工作任务")
-        logger.info("开始绘制甘特图...")
-        gantt_image_path = draw_gantt_chart(processed_data)
-        logger.info(f"甘特图绘制完成，图片临时路径：{gantt_image_path}")
-        logger.info("开始导出Excel文件...")
-        excel_file_path = export_to_excel(processed_data, gantt_image_path)
-        logger.info(f"Excel文件导出完成，最终路径：{excel_file_path}")
+    """
+    主函数，协调整个流程：
+    1. 读取输入文件。
+    2. 调用LLM解析内容。
+    3. 如果解析成功，则生成甘特图。
+    """
+    # --- 1. 定义输入和输出路径 ---
+    input_file_path = "../resources/XX私募股权投资基金项目工作计划.pdf"
 
-        logger.info("开始清理临时文件...")
-        delete_dir_contents(TEMP_DIR)  # 清空temp目录内容（保留目录本身）
-        logger.info("临时文件清理完成")
+    # 确保输出目录存在
+    if not os.path.exists(settings.OUTPUT_DIR):
+        os.makedirs(settings.OUTPUT_DIR)
 
-        # --------------------------
-        # 程序执行成功：输出最终结果提示
-        # --------------------------
-        logger.info("=" * 60)
-        logger.info("【程序执行成功】")
-        logger.info(f"✅ 最终Excel文件：{excel_file_path}")
-        logger.info(f"✅ 运行日志文件：{logger.handlers[1].baseFilename}")  # 输出日志文件路径
-        logger.info("=" * 60)
+    # --- 2. 读取文件内容 ---
+    print(f"--- 步骤 1: 读取输入文件: {input_file_path} ---")
+    file_content = read_file_content(input_file_path)
+    if not file_content:
+        return
 
-    except Exception as e:
-        # 捕获异常：记录错误日志并退出程序
-        logger.error("=" * 60)
-        logger.error("【程序执行失败】", exc_info=True)  # exc_info=True 记录完整异常堆栈
-        logger.error(f"错误原因：{str(e)}")
-        logger.error("=" * 60)
-        exit(1)  # 非0退出码，标识程序异常终止（便于脚本调用时识别状态）
+    # --- 3. 调用 LLM 解析 ---
+    print("\n--- 步骤 2: 使用 AI 模型解析文件内容 ---")
+    work_data = parse_schedule_from_text(file_content)
+
+    # --- 4. 生成甘特图 ---
+    if work_data:
+        print("\n--- 步骤 3: 基于解析结果生成甘特图 ---")
+        create_gantt_chart(work_data, settings.DEFAULT_GANTT_FILENAME)
+    else:
+        print("\n解析失败，无法生成甘特图。")
 
 
-# 程序入口：仅当直接运行main.py时执行
 if __name__ == "__main__":
     main()

@@ -3,40 +3,74 @@
 
 ## 绩效评价甘特图生成工具
 
-一款基于AI的自动化工具，用于生成绩效评价工作甘特图，并导出含数据明细+可视化图片的Excel文件。
+AI 驱动的甘特图生成器
+本项目利用大型语言模型（如 Moonshot AI 的 Kimi）的自然语言处理能力，自动从非结构化的文本文件中提取项目计划，并生成格式精美的 Excel 甘特图。
 
-### 功能特点
+功能
+模块化设计：代码结构清晰，分为配置、工具、核心逻辑等模块，易于维护和扩展。
 
-1. 按绩效评价阶段自动区分甘特图颜色
-2. 导出Excel包含「数据明细」和「甘特图可视化」两个工作表
-3. 支持参数配置（颜色、Excel格式、甘特图样式），无需修改核心代码
-4. 自动清理临时文件，避免目录污染
+AI 解析：能够理解自由格式的文本，并抽取出关键的项目信息（阶段、任务、起止日期）。
 
-### 环境搭建
+专业甘特图：生成在 Excel 单元格上直接渲染的甘特图，支持按阶段合并与着色，视觉效果直观。
 
-1. 安装Python 3.9+（推荐3.10版本）
-2. 安装依赖库：
+配置灵活：API 密钥、模型名称、输出路径等均可通过配置文件或环境变量进行设置。
 
-```bash
-   pip install -r requirements.txt
-```
+项目结构
+.
+├── app/                  # 应用核心代码
+│   ├── config/           # 配置文件
+│   ├── src/              # 核心业务逻辑
+│   └── utils/            # 通用工具函数
+├── resources/            # 存放输入的源文件
+├── output/               # 存放生成的甘特图 (自动创建)
+├── test/                 # 测试目录
+├── main.py               # 项目主入口
+└── requirements.txt      # Python 依赖
 
-### 使用步骤
+如何使用
+1. 安装依赖
+确保你已安装 Python 3.7+。然后通过 pip 安装项目所需的库：
 
-1. （可选）修改配置文件（如需调整颜色、Excel 路径等）：
+pip install -r requirements.txt
 
-    颜色配置：config/color_config.py
-    Excel 配置：config/excel_config.py
-    甘特图配置：config/gantt_config.py
+2. 配置 API 密钥
+为了使用 Moonshot AI，你需要一个 API 密钥。
 
-2. 运行程序：
+推荐方式（环境变量）：
 
-```bash
-    python main.py
-```
+在你的终端中设置一个环境变量。这样可以避免将密钥直接写入代码。
 
-3. 查看结果：
+在 Linux/macOS:
 
-- Excel 文件默认路径：resources/绩效评价甘特图导出文件.xlsx
-- 运行日志：resources/performance_gantt.log
+export MOONSHOT_API_KEY="你的真实密钥"
 
+在 Windows:
+
+set MOONSHOT_API_KEY="你的真实密钥"
+
+备用方式（修改配置文件）：
+
+打开 app/config/settings.py 文件，将 YOUR_MOONSHOT_API_KEY_HERE 替换为你的真实密钥。
+
+3. 准备输入文件
+将包含你的项目计划的文本文件（如 .txt, .md）放入 resources 目录。你可以参考 resources/project_plan.txt 的格式。文件的格式可以很灵活，例如：
+
+项目：新产品上线计划
+
+第一阶段：市场调研 (2025-10-01 到 2025-10-05)
+- 任务A: 竞品分析
+- 任务B: 用户访谈
+
+第二阶段：产品设计 (从 2025-10-06 持续到 2025-10-15)
+- 设计UI/UX原型
+- 召开原型评审会，日期是2025-10-15
+
+...
+
+4. 运行项目
+在项目的根目录下，运行 main.py：
+
+python main.py
+
+5. 查看结果
+程序运行成功后，你会在 output 目录下找到生成的 Excel 甘特图文件，默认为 项目甘特图.xlsx。
