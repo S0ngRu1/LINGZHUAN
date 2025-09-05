@@ -6,40 +6,20 @@ from app.utils.file_utils import delete_dir_contents, TEMP_DIR
 
 
 def main():
-    """
-    程序主入口：协调各模块执行完整流程
-    流程：数据处理 → 绘制甘特图 → 导出Excel → 清理临时文件
-    """
-    # 日志初始化（标记程序启动）
     logger.info("=" * 60)
     logger.info("【绩效评价甘特图生成工具】程序启动")
     logger.info("=" * 60)
-
     try:
-        # --------------------------
-        # 1. 数据处理：加载原始数据 + 计算持续天数 + 关联阶段颜色
-        # --------------------------
         logger.info("开始执行数据处理...")
         processed_data = process_work_data()
         logger.info(f"数据处理完成，共包含 {len(processed_data)} 个工作任务")
-
-        # --------------------------
-        # 2. 绘制甘特图：基于处理后的数据生成可视化图片
-        # --------------------------
         logger.info("开始绘制甘特图...")
         gantt_image_path = draw_gantt_chart(processed_data)
         logger.info(f"甘特图绘制完成，图片临时路径：{gantt_image_path}")
-
-        # --------------------------
-        # 3. 导出Excel：整合数据明细 + 甘特图图片
-        # --------------------------
         logger.info("开始导出Excel文件...")
         excel_file_path = export_to_excel(processed_data, gantt_image_path)
         logger.info(f"Excel文件导出完成，最终路径：{excel_file_path}")
 
-        # --------------------------
-        # 4. 清理临时文件：删除甘特图临时图片，避免目录污染
-        # --------------------------
         logger.info("开始清理临时文件...")
         delete_dir_contents(TEMP_DIR)  # 清空temp目录内容（保留目录本身）
         logger.info("临时文件清理完成")

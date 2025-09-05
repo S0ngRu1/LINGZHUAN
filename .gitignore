@@ -16,3 +16,5 @@ resources/temp/
 resources/*.log
 *.xlsx  # 避免导出的Excel进入版本控制（若需归档可移除该行）
 *.png   # 避免甘特图图片进入版本控制（若需归档可移除该行）
+*.xlsx
+.idea
