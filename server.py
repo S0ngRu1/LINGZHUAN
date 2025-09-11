@@ -184,5 +184,5 @@ def parse_file():
 
 
 if __name__ == '__main__':
-    # app.run(host='0.0.0.0', port=5000, debug=True)
-    parse_excel_to_records('resources/甘特图&爬虫资料/1.注销-xxxc（修改）.xlsx')
+    app.run(host='0.0.0.0', port=5000, debug=True)
+    # parse_excel_to_records('resources/甘特图&爬虫资料/1.注销-xxxc（修改）.xlsx')

@@ -99,19 +99,18 @@
                 <table id="dataTable" class="min-w-full bg-white border-collapse editable-table">
                     <thead>
                         <tr class="text-left text-gray-600 font-semibold">
-                            <th class="w-1/4">阶段</th>
-                            <th class="w-2/4">工作子项</th>
-                            <th class="w-1/6">开始日期 (YYYY-MM-DD)</th>
-                            <th class="w-1/6">结束日期 (YYYY-MM-DD)</th>
-                            <th class="w-auto text-center">操作</th>
+                            <th style="width: 14%;">阶段</th>
+                            <th style="width: 25%;">工作子项</th>
+                            <th style="width: 18%;">成果文件</th>
+                            <th style="width: 15%;">主责单位/负责人</th>
+                            <th style="width: 12%;">开始日期</th>
+                            <th style="width: 12%;">结束日期</th>
+                            <th style="min-width: 110px;" class="text-center">操作</th>
                         </tr>
                     </thead>
                     <tbody></tbody>
                 </table>
             </div>
-            <button id="addRowButton" class="mt-4 bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition-transform duration-200 active:scale-95">
-                + 添加新任务
-            </button>
         </div>
 
         <!-- Step 3: Visualize Gantt Chart -->
@@ -140,7 +139,7 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-    // DOM Element References
+    // DOM Element References (保持不变)
     const fileInput = document.getElementById('fileInput');
     const parseButton = document.getElementById('parseButton');
     const previewButton = document.getElementById('previewButton');
@@ -153,7 +152,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const visualizationSection = document.getElementById('visualization-section');
     const ganttChartContainer = document.getElementById('gantt-chart-container');
 
-    // Event Listeners
+    // Event Listeners (保持不变)
     parseButton.addEventListener('click', async () => {
         const file = fileInput.files[0];
         if (!file) {
@@ -161,59 +160,34 @@ document.addEventListener('DOMContentLoaded', () => {
             fileError.classList.remove('hidden');
             return;
         }
-        // --- 1. 准备工作 (显示加载动画等) ---
-        const loadingDiv = document.getElementById('loading');
-        const fileError = document.getElementById('fileError');
-        const dataTableBody = document.querySelector('#dataTable tbody');
-
         loadingDiv.style.display = 'flex';
         fileError.classList.add('hidden');
         dataTableBody.innerHTML = '';
         previewButton.disabled = true;
         downloadButton.disabled = true;
 
-        // --- 2. 创建 FormData 并添加文件 ---
-        // FormData 是一种特殊的对象，用于将文件和其他数据打包发送到服务器
         const formData = new FormData();
         formData.append('file', file);
 
         try {
-            // --- 3. 使用 fetch API 发送请求到后端 ---
             const response = await fetch('http://127.0.0.1:5000/api/parse-file', {
-                method: 'POST', // 使用 POST 方法发送文件
-                body: formData,  // 将打包好的文件作为请求体
+                method: 'POST',
+                body: formData,
             });
-
-            // --- 4. 处理后端的响应 ---
             if (!response.ok) {
-                // 如果后端返回了错误 (例如 400, 500), 则解析错误信息并显示
                 const errorData = await response.json();
                 throw new Error(errorData.error || `HTTP 错误! 状态: ${response.status}`);
             }
-
-            // 如果后端成功返回数据，则解析 JSON 数据
             const parsedData = await response.json();
-            // 使用返回的真实数据填充表格
             populateTable(parsedData);
             previewButton.disabled = false;
-
         } catch (error) {
-            // --- 5. 捕获并显示任何网络或解析错误 ---
             console.error("解析文件时出错:", error);
             fileError.textContent = `解析失败: ${error.message}`;
             fileError.classList.remove('hidden');
         } finally {
-            // --- 6. 无论成功失败，最后都隐藏加载动画 ---
             loadingDiv.style.display = 'none';
         }
-    });
-
-    addRowButton.addEventListener('click', () => {
-        const newRowData = {"阶段": "新阶段", "工作子项": "新任务", "开始日期": "YYYY-MM-DD", "结束日期": "YYYY-MM-DD"};
-        createRow(newRowData);
-        previewButton.disabled = false;
-        downloadButton.disabled = true; // Deactivate download button if table is edited
-        visualizationSection.classList.add('hidden');
     });
 
     previewButton.addEventListener('click', () => {
@@ -226,7 +200,7 @@ document.addEventListener('DOMContentLoaded', () => {
                  return;
             }
             renderGanttChartVisualization(tableData);
-            downloadButton.disabled = false; // Enable download after successful preview
+            downloadButton.disabled = false;
         } catch (error) {
             console.error("预览生成失败:", error);
             alert("生成预览时发生错误，请检查控制台。");
@@ -254,35 +228,77 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Table Manipulation ---
     function populateTable(data) {
         dataTableBody.innerHTML = '';
-        data.forEach(item => createRow(item));
+        // 如果没有数据，至少创建一个空行让用户开始
+        if (data.length === 0) {
+            const newRow = createRow({"阶段": "", "工作子项": "", "成果文件": "", "主责单位/负责人": "", "开始日期": "", "结束日期": ""});
+            dataTableBody.appendChild(newRow);
+        } else {
+            data.forEach(item => {
+                const newRow = createRow(item);
+                dataTableBody.appendChild(newRow);
+            });
+        }
     }
+
 
     function createRow(item) {
         const row = document.createElement('tr');
+        const task = item || {}; // 关键修复：如果item是null或undefined，则使用一个空对象，防止错误
+        const buttonClasses = "text-white text-xs font-bold py-1 px-2 rounded transition-transform duration-150 active:scale-90 mx-1";
+
         row.innerHTML = `
-            <td contenteditable="true" data-key="阶段">${item.阶段}</td>
-            <td contenteditable="true" data-key="工作子项">${item.工作子项}</td>
-            <td contenteditable="true" data-key="开始日期">${item.开始日期}</td>
-            <td contenteditable="true" data-key="结束日期">${item.结束日期}</td>
+            <td contenteditable="true" data-key="阶段">${task.阶段 || ''}</td>
+            <td contenteditable="true" data-key="工作子项">${task.工作子项 || ''}</td>
+            <td contenteditable="true" data-key="成果文件">${task.成果文件 || ''}</td>
+            <td contenteditable="true" data-key="主责单位/负责人">${task['主责单位/负责人'] || ''}</td>
+            <td contenteditable="true" data-key="开始日期">${task.开始日期 || ''}</td>
+            <td contenteditable="true" data-key="结束日期">${task.结束日期 || ''}</td>
             <td class="text-center">
-                <button class="delete-row bg-red-500 hover:bg-red-600 text-white text-xs font-bold py-1 px-2 rounded">删除</button>
+                <div class="flex justify-center items-center space-x-2">
+                    <button class="add-row bg-green-500 hover:bg-green-600 ${buttonClasses}" title="在此行后添加新任务">+</button>
+                    <button class="delete-row bg-red-500 hover:bg-red-600 ${buttonClasses}" title="删除此行">-</button>
+                </div>
             </td>
         `;
-        dataTableBody.appendChild(row);
+
+        // “添加”按钮的事件监听器
+        row.querySelector('.add-row').addEventListener('click', () => {
+            const newRowData = {
+                "阶段": task.阶段, // 使用处理过的task对象
+                "工作子项": "新任务",
+                "成果文件": "",
+                "主责单位/负责人": task['主责单位/负责人'], // 使用处理过的task对象
+                "开始日期": "",
+                "结束日期": ""
+            };
+            const newTr = createRow(newRowData);
+            row.insertAdjacentElement('afterend', newTr);
+            updateButtonStates();
+        });
+
+        // “删除”按钮的事件监听器
         row.querySelector('.delete-row').addEventListener('click', () => {
             row.remove();
-            previewButton.disabled = false;
-            downloadButton.disabled = true;
-            visualizationSection.classList.add('hidden');
+            updateButtonStates();
         });
+
+        // 单元格编辑的事件监听器
         row.querySelectorAll('[contenteditable="true"]').forEach(cell => {
              cell.addEventListener('input', () => {
-                downloadButton.disabled = true;
-                visualizationSection.classList.add('hidden');
+                updateButtonStates();
              });
         });
+
+        return row;
     }
 
+
+    // 新增一个辅助函数来统一管理按钮状态
+    function updateButtonStates() {
+        previewButton.disabled = false;
+        downloadButton.disabled = true; // 每次编辑后都应禁用下载，强制用户重新预览
+        visualizationSection.classList.add('hidden');
+    }
     function getTableData() {
         return Array.from(dataTableBody.querySelectorAll('tr')).map(row => {
             const cells = row.querySelectorAll('[contenteditable="true"]');
@@ -293,71 +309,107 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function getValidatedData(workData) {
-        let originalRowCount = workData.length;
-        let df = workData.map(d => ({
-            ...d,
-            开始日期: new Date(d.开始日期),
-            结束日期: new Date(d.结束日期)
-        })).filter(d => d.开始日期 instanceof Date && !isNaN(d.开始日期) && d.结束日期 instanceof Date && !isNaN(d.结束日期));
+        // 1. 遍历所有任务，尝试将日期字符串转换为Date对象，无效的则设为null
+        const processedData = workData.map(d => {
+            const startDate = new Date(d.开始日期);
+            const endDate = new Date(d.结束日期);
+            return {
+                ...d,
+                开始日期: !isNaN(startDate.getTime()) ? startDate : null,
+                结束日期: !isNaN(endDate.getTime()) ? endDate : null
+            };
+        });
 
-        let invalidRows = originalRowCount - df.length;
-        if (df.length === 0) {
-            alert("错误：所有任务行的日期都无效。请确保日期格式为 YYYY-MM-DD 且日期有效。");
-            throw new Error("No valid data for processing.");
+        // 2. 找出日期无效的任务，仅用于在控制台给出提示，不影响运行
+        const invalidTasks = processedData.filter(d => !d.开始日期 || !d.结束日期);
+        if (invalidTasks.length > 0 && workData.length > 0) {
+            const invalidTaskNames = invalidTasks.map(t => `"${t.工作子项}"`).join('、');
+            console.warn(`提醒：任务 ${invalidTaskNames} 的日期格式不正确或为空，将仅显示任务信息。`);
         }
-        if (invalidRows > 0) alert(`提醒：已跳过 ${invalidRows} 行日期格式无效的任务。`);
-
-        // 关键改动：现在以“开始日期”为主要排序依据，确保任务按时间顺序排列
-        df.sort((a, b) => a.开始日期 - b.开始日期);
-
-        return df;
+        if (processedData.length === 0) {
+             alert("错误：没有可处理的任务数据。");
+             throw new Error("No data for processing.");
+        }
+        return processedData;
     }
 
-    // --- High-Fidelity Visualization (FIXED with NO MERGING) ---
-    function renderGanttChartVisualization(workData) {
-        const df = getValidatedData(workData);
+    // --- Color Palettes ---
+    const colors = ['B7DEE8', 'FCD5B4', 'C4D79B', 'D8BFD8', 'F0C2C2', 'FFFACD'];
+    const lightColors = ['E8F5F8', 'FEF3E6', 'EFF5DA', 'F4ECF7', 'FBE9E7', 'FFFDE7'];
 
-        const allTaskDates = [...new Set([...df.map(d => d.开始日期.getTime()), ...df.map(d => d.结束日期.getTime())])].map(time => new Date(time));
-        const calendarDates = allTaskDates.sort((a, b) => a - b);
+    // --- 添加这个新的、更清晰的辅助函数 ---
+    function calculateCalendarDates(df) {
+        // 筛选出同时具有有效开始和结束日期的任务
+        const tasksWithDates = df.filter(d => d.开始日期 && d.结束日期);
+        if (tasksWithDates.length === 0) {
+            return [];
+        }
+        // 使用Set来自动去重时间戳
+        const allTimes = new Set();
+        tasksWithDates.forEach(task => {
+            allTimes.add(task.开始日期.getTime());
+            allTimes.add(task.结束日期.getTime());
+        });
+        // 将时间戳转换回Date对象并排序
+        return Array.from(allTimes)
+            .map(time => new Date(time))
+            .sort((a, b) => a - b);
+    }
+
+
+    // --- High-Fidelity Visualization ---
+    function renderGanttChartVisualization(workData) {
+        const df = getValidatedData(workData); // df 包含所有任务
+
+        // 关键修改：仅使用有有效日期的任务来计算时间轴范围
+        const calendarDates = calculateCalendarDates(df);
 
         const uniquePhases = [...new Set(df.map(d => d.阶段))];
-        const colors = ['#B7DEE8', '#FCD5B4', '#C4D79B', '#D8BFD8', '#B7DDE8', '#FFDFDD', '#FFFACD'];
-        const phaseColorMap = uniquePhases.reduce((acc, phase, i) => ({ ...acc, [phase]: colors[i % colors.length] }), {});
+        const phaseColorMap = uniquePhases.reduce((acc, phase, i) => ({ ...acc, [phase]: {
+            task: colors[i % colors.length],
+            info: lightColors[i % lightColors.length]
+        }}), {});
 
         ganttChartContainer.innerHTML = '';
         const grid = document.createElement('div');
         grid.className = 'gantt-container';
-        grid.style.gridTemplateColumns = `150px 300px repeat(${calendarDates.length}, minmax(110px, 1fr))`;
+        grid.style.gridTemplateColumns = `150px 250px 200px 150px repeat(${calendarDates.length}, minmax(110px, 1fr))`;
 
         let html = '';
 
-        // Render Headers
-        html += `<div class="gantt-cell gantt-header" style="grid-column: 1 / 3; grid-row: 1;"></div>`;
-        html += `<div class="gantt-cell gantt-header" style="grid-column: 3 / ${3 + calendarDates.length}; grid-row: 1;">工作日</div>`;
+        // --- 表头渲染（不变） ---
+        html += `<div class="gantt-cell gantt-header" style="grid-column: 1 / 5; grid-row: 1;"></div>`;
+        if (calendarDates.length > 0) { // 仅当有日期时才显示“工作日”
+            html += `<div class="gantt-cell gantt-header" style="grid-column: 5 / ${5 + calendarDates.length}; grid-row: 1;">工作日</div>`;
+        }
         html += `<div class="gantt-cell gantt-header" style="grid-column: 1; grid-row: 2;">阶段</div>`;
         html += `<div class="gantt-cell gantt-header" style="grid-column: 2; grid-row: 2;">工作子项</div>`;
+        html += `<div class="gantt-cell gantt-header" style="grid-column: 3; grid-row: 2;">成果文件</div>`;
+        html += `<div class="gantt-cell gantt-header" style="grid-column: 4; grid-row: 2;">主责单位/负责人</div>`;
         calendarDates.forEach((date, i) => {
-            const dateString = date.toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' });
-            html += `<div class="gantt-cell gantt-header" style="grid-column: ${i + 3}; grid-row: 2;">${dateString}</div>`;
+            html += `<div class="gantt-cell gantt-header" style="grid-column: ${i + 5}; grid-row: 2;">${date.toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' })}</div>`;
         });
 
-        // Render Body (Simplified Logic)
-        df.forEach((task, i) => {
-            const taskRow = i + 3; // Grid rows for body start at 3
+        // --- 任务行渲染 ---
+        df.forEach((task, i) => { // 遍历所有任务
+            const taskRow = i + 3;
+            const phaseColors = phaseColorMap[task.阶段] || { info: 'FFFFFF', task: 'D9D9D9' }; // 为空阶段提供默认色
+            const infoColor = phaseColors.info;
 
-            // Phase cell (repeated for each row)
-            html += `<div class="gantt-cell gantt-phase" style="grid-column: 1; grid-row: ${taskRow};">${task.阶段}</div>`;
+            // 渲染左侧信息列（所有行都会执行）
+            html += `<div class="gantt-cell gantt-phase" style="grid-column: 1; grid-row: ${taskRow}; background-color: #${infoColor};">${task.阶段 || ''}</div>`;
+            html += `<div class="gantt-cell gantt-task" style="grid-column: 2; grid-row: ${taskRow}; background-color: #${infoColor};">${task.工作子项 || ''}</div>`;
+            html += `<div class="gantt-cell" style="grid-column: 3; grid-row: ${taskRow}; background-color: #${infoColor};">${task.成果文件 || ''}</div>`;
+            html += `<div class="gantt-cell" style="grid-column: 4; grid-row: ${taskRow}; background-color: #${infoColor};">${task['主责单位/负责人'] || ''}</div>`;
 
-            // Task cell
-            html += `<div class="gantt-cell gantt-task" style="grid-column: 2; grid-row: ${taskRow};">${task.工作子项}</div>`;
-
-            // Date cells
+            // 渲染右侧时间条
             calendarDates.forEach((calDate, j) => {
-                let bgColor = '';
-                if (calDate >= task.开始日期 && calDate <= task.结束日期) {
-                    bgColor = `background-color: ${phaseColorMap[task.阶段]};`;
+                let taskBarColor = '';
+                // 关键修改：只有当任务日期有效且在范围内时，才填充颜色
+                if (task.开始日期 && task.结束日期 && calDate >= task.开始日期 && calDate <= task.结束日期) {
+                    taskBarColor = `background-color: #${phaseColors.task};`;
                 }
-                html += `<div class="gantt-cell" style="grid-column: ${j + 3}; grid-row: ${taskRow}; ${bgColor}"></div>`;
+                html += `<div class="gantt-cell" style="grid-column: ${j + 5}; grid-row: ${taskRow}; ${taskBarColor}"></div>`;
             });
         });
 
@@ -366,41 +418,43 @@ document.addEventListener('DOMContentLoaded', () => {
         visualizationSection.classList.remove('hidden');
     }
 
-    // --- Excel Generation Logic (Unchanged) ---
+    // --- Excel Generation Logic ---
     async function createGanttChart(workData, outputFilename) {
-        const df = getValidatedData(workData);
+        const df = getValidatedData(workData); // df 包含所有任务
+
+        // 关键修改：仅使用有有效日期的任务来计算时间轴范围
+        const calendarDates = calculateCalendarDates(df);
+
         const workbook = await XlsxPopulate.fromBlankAsync();
         const ganttSheet = workbook.sheet("Sheet1").name("项目进度");
         const dataSheet = workbook.addSheet("原始数据");
 
-        const allTaskDates = [...new Set([...df.map(d => d.开始日期.getTime()), ...df.map(d => d.结束日期.getTime())])].map(time => new Date(time));
-        const calendarDates = allTaskDates.sort((a, b) => a - b);
-
-        // In Excel, we still group for merging, so we need to find the unique, ordered phases.
         const orderedPhases = [];
         const phaseGroups = {};
-        df.forEach(task => {
-            if (!phaseGroups[task.阶段]) {
-                orderedPhases.push(task.阶段);
-            }
+        df.forEach(task => { // 使用完整的df进行分组
+            if (!phaseGroups[task.阶段]) orderedPhases.push(task.阶段);
             phaseGroups[task.阶段] = [...(phaseGroups[task.阶段] || []), task];
         });
 
-        const colors = ['B7DEE8', 'FCD5B4', 'C4D79B', 'D8BFD8', 'B7DDE8', 'FFDFDD', 'FFFACD'];
-        const phaseColorMap = orderedPhases.reduce((acc, phase, i) => ({ ...acc, [phase]: colors[i % colors.length] }), {});
+        const phaseColorMap = orderedPhases.reduce((acc, phase, i) => ({ ...acc, [phase]: {
+            task: colors[i % colors.length],
+            info: lightColors[i % lightColors.length]
+        }}), {});
 
         ganttSheet.gridLinesVisible(false);
 
         const headerStyle = { bold: true, horizontalAlignment: "center", verticalAlignment: "center", fill: "D9D9D9", border: true };
         const fullBorderStyle = { border: true };
 
-        ganttSheet.range(1, 3, 1, 2 + calendarDates.length).merged(true).value("工作日").style(headerStyle);
-        ganttSheet.cell(1, 1).value(null).style({ topBorder: true, leftBorder: true });
-        ganttSheet.cell(1, 2).value(null).style({ topBorder: true, rightBorder: true });
-        ganttSheet.cell(2, 1).value("阶段").style(headerStyle);
-        ganttSheet.cell(2, 2).value("工作子项").style(headerStyle);
+        if (calendarDates.length > 0) {
+            ganttSheet.range(1, 5, 1, 4 + calendarDates.length).merged(true).value("工作日").style(headerStyle);
+        }
+        ganttSheet.range(1, 1, 1, 4).merged(true).value(null).style({ topBorder: true, leftBorder: true, rightBorder: true });
+
+        const headers = ["阶段", "工作子项", "成果文件", "主责单位/负责人"];
+        headers.forEach((header, i) => ganttSheet.cell(2, i + 1).value(header).style(headerStyle));
         calendarDates.forEach((date, i) => {
-            ganttSheet.cell(2, i + 3).value(date).style(headerStyle).style("numberFormat", "yyyy/mm/dd");
+            ganttSheet.cell(2, i + 5).value(date).style(headerStyle).style("numberFormat", "yyyy/mm/dd");
         });
 
         let rowOffset = 3;
@@ -408,22 +462,26 @@ document.addEventListener('DOMContentLoaded', () => {
             const group = phaseGroups[phase];
             const startRow = rowOffset;
             const endRow = rowOffset + group.length - 1;
-            const phaseStyle = { ...fullBorderStyle, bold: true, horizontalAlignment: "center", verticalAlignment: "center", wrapText: true };
-            if (group.length > 1) {
-                ganttSheet.range(startRow, 1, endRow, 1).merged(true).value(phase).style(phaseStyle);
-            } else {
-                ganttSheet.cell(startRow, 1).value(phase).style(phaseStyle);
-            }
+            const phaseColors = phaseColorMap[phase] || { info: 'FFFFFF', task: 'D9D9D9' };
+            const infoColor = phaseColors.info;
+
+            const phaseStyle = { ...fullBorderStyle, bold: true, horizontalAlignment: "center", verticalAlignment: "center", wrapText: true, fill: infoColor };
+            if (group.length > 1) ganttSheet.range(startRow, 1, endRow, 1).merged(true).value(phase).style(phaseStyle);
+            else ganttSheet.cell(startRow, 1).value(phase).style(phaseStyle);
 
             group.forEach((task, i) => {
                 const currentRow = rowOffset + i;
-                ganttSheet.cell(currentRow, 2).value(task.工作子项).style({ ...fullBorderStyle, horizontalAlignment: "left", verticalAlignment: "center" });
+                ganttSheet.cell(currentRow, 2).value(task.工作子项).style({ ...fullBorderStyle, fill: infoColor, horizontalAlignment: "left", verticalAlignment: "center" });
+                ganttSheet.cell(currentRow, 3).value(task.成果文件).style({ ...fullBorderStyle, fill: infoColor });
+                ganttSheet.cell(currentRow, 4).value(task['主责单位/负责人']).style({ ...fullBorderStyle, fill: infoColor });
+
                 calendarDates.forEach((calDate, j) => {
                     const cellStyle = { ...fullBorderStyle };
-                    if (calDate >= task.开始日期 && calDate <= task.结束日期) {
-                        cellStyle.fill = phaseColorMap[task.阶段];
+                    // 关键修改：只有当任务日期有效且在范围内时，才填充颜色
+                    if (task.开始日期 && task.结束日期 && calDate >= task.开始日期 && calDate <= task.结束日期) {
+                        cellStyle.fill = phaseColors.task;
                     }
-                    ganttSheet.cell(currentRow, j + 3).style(cellStyle);
+                    ganttSheet.cell(currentRow, j + 5).style(cellStyle);
                 });
             });
             rowOffset += group.length;
@@ -431,17 +489,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
         ganttSheet.column(1).width(15);
         ganttSheet.column(2).width(30);
-        for (let i = 0; i < calendarDates.length; i++) ganttSheet.column(i + 3).width(12);
-        ganttSheet.panes({ activePane: "bottomRight", state: "frozen", xSplit: 2, ySplit: 2 });
+        ganttSheet.column(3).width(25);
+        ganttSheet.column(4).width(20);
+        for (let i = 0; i < calendarDates.length; i++) ganttSheet.column(i + 5).width(12);
+        ganttSheet.panes({ activePane: "bottomRight", state: "frozen", xSplit: 4, ySplit: 2 });
 
         const dataHeaderStyle = { bold: true, fill: "D9D9D9" };
-        const dataHeaders = ["阶段", "工作子项", "开始日期", "结束日期"];
+        const dataHeaders = ["阶段", "工作子项", "成果文件", "主责单位/负责人", "开始日期", "结束日期"];
         dataHeaders.forEach((header, i) => dataSheet.cell(1, i + 1).value(header).style(dataHeaderStyle));
         workData.forEach((row, i) => {
-            dataSheet.cell(i + 2, 1).value(row.阶段);
-            dataSheet.cell(i + 2, 2).value(row.工作子项);
-            dataSheet.cell(i + 2, 3).value(row.开始日期);
-            dataSheet.cell(i + 2, 4).value(row.结束日期);
+            dataHeaders.forEach((header, j) => {
+                dataSheet.cell(i + 2, j + 1).value(row[header] || "");
+            });
         });
         dataSheet.freezePanes(1, 0);
 
@@ -460,4 +519,3 @@ document.addEventListener('DOMContentLoaded', () => {
 
 </body>
 </html>
-
