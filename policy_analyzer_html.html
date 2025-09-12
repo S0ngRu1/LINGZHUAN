@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能政策对比分析工具</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+        }
+        .loader {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #3498db;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1.5s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .result-card, .search-results-card {
+            transition: all 0.3s ease-in-out;
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        .result-card.visible, .search-results-card.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .search-result-item:hover {
+            background-color: #f9fafb;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+    <div class="container mx-auto p-4 md:p-8">
+        <header class="text-center mb-10">
+            <h1 class="text-4xl md:text-5xl font-extrabold text-gray-900">智能政策对比分析工具</h1>
+            <p class="mt-3 text-lg text-gray-600">利用AI大模型，快速洞察政策文件间的异同。</p>
+        </header>
+
+        <!-- 1. 控制区 -->
+        <div class="bg-white p-6 rounded-2xl shadow-lg mb-8 max-w-4xl mx-auto">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label for="website-select" class="block text-sm font-medium text-gray-700 mb-2">选择网站来源</label>
+                    <select id="website-select" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <option value="shaanxi">陕西省政府</option>
+                        <option value="sasac">政府信息公开目录 (国资委)</option>
+                        <option value="mot">中华人民共和国交通运输部</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="keyword-input" class="block text-sm font-medium text-gray-700 mb-2">输入关键词</label>
+                    <input type="text" id="keyword-input" placeholder="例如：投资管理办法" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                </div>
+            </div>
+            <div class="mt-4">
+                <button id="searchButton" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl text-lg">
+                    搜索政策文件
+                </button>
+            </div>
+        </div>
+
+        <!-- 2. 搜索结果区 -->
+        <div id="search-results-section" class="max-w-4xl mx-auto mb-8 hidden">
+             <div class="bg-white p-6 rounded-2xl shadow-lg search-results-card">
+                <h2 class="text-2xl font-bold mb-4 text-gray-800">第二步：选择要对比的文件</h2>
+                <div id="search-results-list" class="space-y-2 max-h-96 overflow-y-auto pr-2">
+                    <!-- 搜索结果将在这里显示 -->
+                </div>
+                <div class="mt-6 text-center">
+                    <button id="compareButton" class="w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-8 rounded-xl text-lg disabled:bg-gray-400 disabled:cursor-not-allowed" disabled>
+                        对比已选两项
+                    </button>
+                </div>
+             </div>
+        </div>
+
+        <!-- 加载状态 -->
+        <div id="loading" class="text-center my-10 hidden"></div>
+
+        <!-- 错误提示 -->
+        <div id="error-display" class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-lg max-w-4xl mx-auto hidden" role="alert"></div>
+
+        <!-- 3. 最终分析结果区 -->
+        <div id="analysis-results-container" class="space-y-8"></div>
+    </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const websiteSelect = document.getElementById('website-select');
+    const keywordInput = document.getElementById('keyword-input');
+    const searchButton = document.getElementById('searchButton');
+    const searchResultsSection = document.getElementById('search-results-section');
+    const searchResultsList = document.getElementById('search-results-list');
+    const compareButton = document.getElementById('compareButton');
+    const loadingDiv = document.getElementById('loading');
+    const errorDisplay = document.getElementById('error-display');
+    const analysisResultsContainer = document.getElementById('analysis-results-container');
+
+    // 搜索按钮事件
+    searchButton.addEventListener('click', async () => {
+        const website = websiteSelect.value;
+        const keyword = keywordInput.value.trim();
+        if (!keyword) {
+            showError("请输入关键词进行搜索。");
+            return;
+        }
+
+        setLoadingState(true, "正在搜索，请稍候...");
+        searchResultsSection.classList.add('hidden');
+        analysisResultsContainer.innerHTML = '';
+
+        try {
+            const response = await fetch('/api/search', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ website, keyword })
+            });
+            const results = await response.json();
+            if (!response.ok) throw new Error(results.error || "搜索失败");
+
+            displaySearchResults(results);
+        } catch (error) {
+            showError(error.message);
+        } finally {
+            setLoadingState(false);
+        }
+    });
+
+    // 对比按钮事件
+    compareButton.addEventListener('click', async () => {
+        const selected = getSelectedUrls();
+        if (selected.length !== 2) return;
+
+        setLoadingState(true, "正在抓取网页并调用AI分析，请稍候...");
+        analysisResultsContainer.innerHTML = '';
+
+        try {
+            const response = await fetch('/api/analyze', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ doc1_url: selected[0], doc2_url: selected[1] })
+            });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.error || "分析失败");
+
+            displayAnalysisResults(result);
+        } catch (error) {
+            showError(error.message);
+        } finally {
+            setLoadingState(false);
+        }
+    });
+
+    // 渲染搜索结果
+    function displaySearchResults(results) {
+        searchResultsList.innerHTML = '';
+        if (results.length === 0) {
+            searchResultsList.innerHTML = '<p class="text-gray-500">未找到相关结果，请尝试其他关键词。</p>';
+        } else {
+            results.forEach((item, index) => {
+                const div = document.createElement('div');
+                div.className = 'p-3 border rounded-lg cursor-pointer search-result-item flex items-start space-x-3';
+                div.innerHTML = `
+                    <input type="checkbox" id="res-${index}" value="${item.url}" class="mt-1 h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                    <label for="res-${index}" class="flex-1">
+                        <span class="font-medium text-gray-800">${item.title}</span>
+                        <span class="block text-xs text-gray-500 mt-1">${item.url}</span>
+                    </label>
+                `;
+                searchResultsList.appendChild(div);
+            });
+        }
+        searchResultsSection.classList.remove('hidden');
+        setTimeout(() => searchResultsSection.querySelector('.search-results-card').classList.add('visible'), 50);
+
+        // 监听checkbox变化以更新对比按钮状态
+        searchResultsList.addEventListener('change', updateCompareButtonState);
+        updateCompareButtonState();
+    }
+
+    // 渲染最终分析结果
+    function displayAnalysisResults(data) {
+        analysisResultsContainer.innerHTML = `
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                ${createDocumentCard('文件一', data.document1)}
+                ${createDocumentCard('文件二', data.document2)}
+            </div>
+            <div class="mt-8">${createComparisonCard(data.comparison)}</div>
+        `;
+        document.querySelectorAll('.result-card').forEach((card, index) => {
+            setTimeout(() => card.classList.add('visible'), index * 200);
+        });
+    }
+
+    // --- 辅助函数 ---
+    function updateCompareButtonState() {
+        const selectedCount = getSelectedUrls().length;
+        compareButton.disabled = (selectedCount !== 2);
+        if (selectedCount === 2) {
+             compareButton.textContent = "对比已选两项";
+        } else {
+             compareButton.textContent = `请选择两项 (${selectedCount}/2)`;
+        }
+    }
+
+    function getSelectedUrls() {
+        return Array.from(searchResultsList.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value);
+    }
+
+    function setLoadingState(isLoading, message = "") {
+        if (isLoading) {
+            loadingDiv.innerHTML = `<div class="loader mx-auto"></div><p class="mt-4 text-blue-600 font-semibold text-lg">${message}</p>`;
+            loadingDiv.classList.remove('hidden');
+            searchButton.disabled = true;
+            compareButton.disabled = true;
+        } else {
+            loadingDiv.classList.add('hidden');
+            searchButton.disabled = false;
+            updateCompareButtonState();
+        }
+        errorDisplay.classList.add('hidden');
+    }
+
+    function showError(message) {
+        errorDisplay.innerHTML = `<p class="font-bold">发生错误</p><p>${message}</p>`;
+        errorDisplay.classList.remove('hidden');
+    }
+
+    // --- 卡片模板 (与之前版本类似) ---
+    function createDocumentCard(title, docData) { return `<div class="bg-white p-6 rounded-2xl shadow-lg result-card"><h2 class="text-2xl font-bold mb-4 text-gray-800">${title}</h2><div class="space-y-3 text-gray-700 result-content"><p><strong>发文日期:</strong> ${docData.publish_date || '未提取'}</p><p><strong>发文机构:</strong> ${docData.agency || '未提取'}</p><div><strong class="block mb-1">主要内容摘要:</strong><p class="text-gray-600 leading-relaxed">${docData.summary || '未提取'}</p></div></div></div>`; }
+    function createComparisonCard(comparisonText) { return `<div class="bg-white p-6 rounded-2xl shadow-lg result-card"><h2 class="text-2xl font-bold mb-4 text-indigo-700">🔍 两份文件主要区别点</h2><div class="space-y-3 text-gray-700 result-content"><p class="text-gray-600 leading-relaxed whitespace-pre-wrap">${comparisonText || '未提取'}</p></div></div>`; }
+});
+</script>
+
+</body>
+</html>
+
