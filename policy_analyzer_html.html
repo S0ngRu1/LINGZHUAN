@@ -174,14 +174,16 @@ document.addEventListener('DOMContentLoaded', () => {
                         <span class="block text-xs text-gray-500 mt-1">${item.url}</span>
                     </label>
                 `;
+                // ✅ 关键修复点: 将事件监听器直接绑定到新创建的复选框上
+                div.querySelector('input[type="checkbox"]').addEventListener('change', updateCompareButtonState);
                 searchResultsList.appendChild(div);
             });
         }
         searchResultsSection.classList.remove('hidden');
         setTimeout(() => searchResultsSection.querySelector('.search-results-card').classList.add('visible'), 50);
 
-        // 监听checkbox变化以更新对比按钮状态
-        searchResultsList.addEventListener('change', updateCompareButtonState);
+        // ✅ 关键修复点: 移除之前错误的事件绑定
+        // searchResultsList.addEventListener('change', updateCompareButtonState);
         updateCompareButtonState();
     }
 

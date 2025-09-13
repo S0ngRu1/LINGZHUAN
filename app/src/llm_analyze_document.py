@@ -4,6 +4,7 @@
 # @File : llm_analyze_document.py
 import os
 import json
+from app.config import settings
 from openai import OpenAI
 
 if not settings.MOONSHOT_API_KEY or settings.MOONSHOT_API_KEY == "YOUR_MOONSHOT_API_KEY_HERE":

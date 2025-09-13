@@ -55,7 +55,6 @@ def analyze_api():
 
     if not all([doc1_url, doc2_url]):
         return jsonify({"error": "必须提供两个URL进行对比"}), 400
-
     try:
         print(f"正在抓取并分析:\n1: {doc1_url}\n2: {doc2_url}")
         content1 = scrape_content(doc1_url)
