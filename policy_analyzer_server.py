@@ -7,12 +7,12 @@ from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 
 # 导入我们自定义的模块
-from app.src import scrape_content
-from app.src.llm_analyze_document import analyze_documents
+from app.src.scrape_content import scrape_content
+from app.src.llm_analyze_document import analyze_single_document, compare_summaries
 from app.src.searcher import search_website  # 导入新的搜索模块
 
 # 初始化Flask应用
-app = Flask(__name__, template_folder='templates')
+app = Flask(__name__, template_folder='.')
 CORS(app)
 
 
@@ -23,61 +23,65 @@ def index():
 
 
 @app.route('/api/search', methods=['POST'])
-def search_api():
-    """
-    新的API端点，用于根据关键词在指定网站上搜索。
-    """
-    data = request.get_json()
-    website = data.get('website')
-    keyword = data.get('keyword')
-
-    if not all([website, keyword]):
-        return jsonify({"error": "缺少网站来源或关键词"}), 400
-
+def search():
     try:
-        print(f"收到搜索请求: 网站='{website}', 关键词='{keyword}'")
-        search_results = search_website(website, keyword)
-        print(f"搜索到 {len(search_results)} 条结果。")
-        return jsonify(search_results)
+        data = request.json
+        website = data.get('website')
+        keyword = data.get('keyword')
+        if not website or not keyword:
+            return jsonify({"error": "缺少网站或关键词参数"}), 400
+
+        results = search_website(website, keyword)
+        return jsonify(results)
     except Exception as e:
-        print(f"搜索过程中发生错误: {e}")
-        return jsonify({"error": f"服务器搜索时发生错误: {e}"}), 500
+        return jsonify({"error": f"服务器内部错误: {e}"}), 500
 
 
-@app.route('/api/analyze', methods=['POST'])
-def analyze_api():
-    """
-    更新后的API端点，用于对比前端传入的两个URL。
-    """
-    data = request.get_json()
-    doc1_url = data.get('doc1_url')
-    doc2_url = data.get('doc2_url')
+# --- 新的、拆分后的API端点 ---
 
-    if not all([doc1_url, doc2_url]):
-        return jsonify({"error": "必须提供两个URL进行对比"}), 400
+@app.route('/api/analyze-document', methods=['POST'])
+def analyze_document_endpoint():
     try:
-        print(f"正在抓取并分析:\n1: {doc1_url}\n2: {doc2_url}")
-        content1 = scrape_content(doc1_url)
-        content2 = scrape_content(doc2_url)
+        data = request.json
+        doc_url = data.get('doc_url')
+        if not doc_url:
+            return jsonify({"error": "缺少文档URL"}), 400
 
-        if not content1 or not content2:
-            return jsonify({"error": "无法抓取一个或两个URL的内容"}), 500
+        print(f"正在分析单个文档: {doc_url}")
+        content = scrape_content(doc_url)
+        if not content:
+            return jsonify({"error": "抓取网页内容失败"}), 500
 
-        analysis_result = analyze_documents(content1, content2)
+        analysis = analyze_single_document(content)
+        if not analysis:
+            return jsonify({"error": "AI分析文档失败"}), 500
 
-        if not analysis_result:
-            return jsonify({"error": "AI模型分析失败"}), 500
-
-        print("分析成功，返回结果。")
-        return jsonify(analysis_result)
-
+        return jsonify(analysis)
     except Exception as e:
-        print(f"分析过程中发生错误: {e}")
-        return jsonify({"error": f"服务器分析时发生错误: {e}"}), 500
+        print(f"分析单个文档时发生错误: {e}")
+        return jsonify({"error": f"服务器内部错误: {e}"}), 500
+
+
+@app.route('/api/compare-summaries', methods=['POST'])
+def compare_summaries_endpoint():
+    try:
+        data = request.json
+        summary1 = data.get('summary1')
+        summary2 = data.get('summary2')
+        if summary1 is None or summary2 is None:  # 允许空字符串
+            return jsonify({"error": "缺少摘要内容"}), 400
+
+        print("正在对比摘要...")
+        comparison = compare_summaries(summary1, summary2)
+        if not comparison:
+            return jsonify({"error": "AI对比摘要失败"}), 500
+
+        return jsonify(comparison)
+    except Exception as e:
+        print(f"对比摘要时发生错误: {e}")
+        return jsonify({"error": f"服务器内部错误: {e}"}), 500
 
 
 if __name__ == '__main__':
-    if not os.path.exists('app'): os.makedirs('app')
     app.run(host='0.0.0.0', port=5000, debug=True)
-
 
