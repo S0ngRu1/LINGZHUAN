@@ -270,7 +270,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     try {
         updateLoadingMessage(`正在提取文件一 (${selectedDocs[0].title}) 的摘要与大纲...`);
-        const doc1Res = await fetch('http://localhost:5000/api/analyze-document', {
+        const doc1Res = await fetch('/api/analyze-document', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ doc_url: selectedDocs[0].url })
@@ -281,7 +281,7 @@ document.addEventListener('DOMContentLoaded', () => {
         renderDocumentData('doc1', window._latestAnalysisData.document1);
 
         updateLoadingMessage(`正在提取文件二 (${selectedDocs[1].title}) 的摘要与大纲...`);
-        const doc2Res = await fetch('http://localhost:5000/api/analyze-document', {
+        const doc2Res = await fetch('/api/analyze-document', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ doc_url: selectedDocs[1].url })
@@ -295,7 +295,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const summary1 = doc1Data.summary || "";
         const summary2 = doc2Data.summary || "";
 
-        const compRes = await fetch('http://localhost:5000/api/compare-summaries', {
+        const compRes = await fetch('/api/compare-summaries', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ summary1, summary2 })
@@ -511,7 +511,7 @@ document.addEventListener('DOMContentLoaded', () => {
         searchResultsSection.classList.add('hidden');
         analysisResultsContainer.innerHTML = '';
         try {
-            const response = await fetch('http://localhost:5000/api/search', {
+            const response = await fetch('/api/search', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ website, keyword })
@@ -541,6 +541,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <span class="font-medium text-gray-800">${item.title}</span>
                         <span class="block text-xs text-gray-500 mt-1">${item.url}</span>
                     </label>
+                    <a href="${item.url}" target="_blank" class="ml-3 bg-blue-500 hover:bg-blue-700 text-white font-semibold py-1 px-3 rounded-md text-sm">查看原文</a>
                 `;
                 div.querySelector('input[type="checkbox"]').addEventListener('change', updateCompareButtonState);
                 searchResultsList.appendChild(div);

@@ -167,7 +167,7 @@ document.addEventListener('DOMContentLoaded', () => {
         formData.append('file', file);
 
         try {
-            const response = await fetch('http://127.0.0.1:5000/api/parse-file', {
+            const response = await fetch('/api/parse-file', {
                 method: 'POST',
                 body: formData,
             });
@@ -220,7 +220,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             // 2. 向新的后端接口发送POST请求，并携带JSON数据
-            const response = await fetch('http://127.0.0.1:5000/api/generate-excel', {
+            const response = await fetch('/api/generate-excel', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

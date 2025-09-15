@@ -3,141 +3,189 @@
 # @Author : CSR
 # @File : gantt_generator.py
 
-import os
+from typing import List, Dict
 import pandas as pd
-import xlsxwriter
-from itertools import cycle
-from typing import List, Dict, Optional
-from app.config import settings
+import io
 
-# 使用字典缓存格式，避免重复创建，提升效率
-format_cache = {}
+from openpyxl import Workbook
+from openpyxl.utils.dataframe import dataframe_to_rows
+from openpyxl.chart import BarChart, PieChart, Reference
+from openpyxl.styles import PatternFill, Border, Side, Alignment, Font
 
-
-def _get_format(workbook: xlsxwriter.Workbook, properties: Dict) -> xlsxwriter.format.Format:
-    """获取或创建一个缓存的单元格格式。"""
-    key = tuple(sorted(properties.items()))
-    if key not in format_cache:
-        format_cache[key] = workbook.add_format(properties)
-    return format_cache[key]
-
-
-def create_gantt_chart(work_data: List[Dict[str, str]], output_filename: str) -> bool:
+def generate_gantt_and_charts_excel(work_data: List[Dict]):
     """
-    根据解析出的工作数据，创建一个单元格渲染的Excel甘特图。
+    根据工作数据生成一个包含甘特图、原始数据和统计图表的Excel文件。
+    文件在内存中生成，直接返回二进制数据。
     """
-    if not work_data:
-        print("错误：没有提供用于生成甘特图的数据。")
-        return False
+    df = pd.DataFrame(work_data)
 
-    try:
-        df = pd.DataFrame(work_data)
-        df['开始日期'] = pd.to_datetime(df['开始日期'])
-        df['结束日期'] = pd.to_datetime(df['结束日期'])
-    except (KeyError, pd.errors.ParserError) as e:
-        print(f"错误: 输入数据格式不正确或日期无法解析 - {e}")
-        return False
+    # 1. 数据预处理，将日期字符串转换为datetime对象，便于后续计算
+    df['start_date_dt'] = pd.to_datetime(df['开始日期'], errors='coerce')
+    df['end_date_dt'] = pd.to_datetime(df['结束日期'], errors='coerce')
 
-    # 1. 收集所有唯一的开始和结束日期
-    all_task_dates = pd.to_datetime(pd.concat([df['开始日期'], df['结束日期']]).unique())
-    # 2. 排序后形成我们的日历
-    calendar_dates = sorted(all_task_dates)
-    if not calendar_dates:
-        print("错误：未能从任务中提取任何有效日期。")
-        return False
+    # 2. 数据聚合统计 (用于图表)
+    phase_counts = df['阶段'].value_counts().reset_index()
+    phase_counts.columns = ['阶段', '任务数量']
+    person_counts = df['主责单位/负责人'].value_counts().reset_index()
+    person_counts.columns = ['主责单位/负责人', '任务数量']
 
-    unique_phases = df['阶段'].unique()
-    colors = cycle(['#B7DEE8', '#FCD5B4', '#C4D79B', '#D8BFD8', '#B7DDE8', '#FFDFDD', '#FFFACD'])
-    phase_color_map = {phase: next(colors) for phase in unique_phases}
+    # 3. 创建Excel工作簿和工作表
+    wb = Workbook()
+    if "Sheet" in wb.sheetnames:
+        wb.remove(wb["Sheet"])
 
-    output_path = os.path.join(settings.OUTPUT_DIR, output_filename)
-    os.makedirs(settings.OUTPUT_DIR, exist_ok=True)
+    gantt_sheet = wb.create_sheet(title="项目进度甘特图")
+    analysis_sheet = wb.create_sheet(title="统计分析")
+    data_sheet = wb.create_sheet(title="原始数据")
+    wb.move_sheet(analysis_sheet, offset=-len(wb.sheetnames))  # 将统计分析页置顶
 
-    workbook = xlsxwriter.Workbook(output_path)
-    worksheet_gantt = workbook.add_worksheet("项目进度")
-    worksheet_data = workbook.add_worksheet("原始数据")
+    # 4. 填充“统计分析”工作表并创建图表
+    analysis_sheet['A1'] = '各阶段任务数量统计'
+    analysis_sheet['A1'].font = Font(bold=True, size=14)
+    for r in dataframe_to_rows(phase_counts, index=False, header=True):
+        analysis_sheet.append(r)
 
-    # 清空上一轮的格式缓存
-    format_cache.clear()
+    analysis_sheet['D1'] = '各主责单位/负责人任务分布统计'
+    analysis_sheet['D1'].font = Font(bold=True, size=14)
+    analysis_sheet['D2'] = '主责单位/负责人'
+    analysis_sheet['D2'].font = Font(bold=True)
+    analysis_sheet['E2'] = '任务数量'
+    analysis_sheet['E2'].font = Font(bold=True)
+    for index, row_data in person_counts.iterrows():
+        row_num = index + 3  # +3因为iterrows索引从0开始，而我们的数据从第3行开始
+        analysis_sheet.cell(row=row_num, column=4, value=row_data['主责单位/负责人'])
+        analysis_sheet.cell(row=row_num, column=5, value=row_data['任务数量'])
 
-    # --- 绘制甘特图 ---
-    worksheet_gantt.hide_gridlines(2)
+    # 创建柱状图 (阶段任务数)
+    bar_chart = BarChart()
+    bar_chart.title = "各阶段任务数量"
+    data = Reference(analysis_sheet, min_col=2, min_row=2, max_row=len(phase_counts) + 1)
+    cats = Reference(analysis_sheet, min_col=1, min_row=3, max_row=len(phase_counts) + 1)
+    bar_chart.add_data(data, titles_from_data=True)
+    bar_chart.set_categories(cats)
+    analysis_sheet.add_chart(bar_chart, "A12")
 
-    header_format = _get_format(workbook, {
-        'bold': True, 'align': 'center', 'valign': 'vcenter', 'fg_color': '#D9D9D9',
-        'top': 1, 'bottom': 1, 'left': 1, 'right': 1
-    })
+    # 创建饼图 (负责人任务分布)
+    pie_chart = PieChart()
+    pie_chart.title = "各主责单位/负责人任务分布"
+    labels = Reference(analysis_sheet, min_col=4, min_row=3, max_row=len(person_counts) + 2)
+    # 数据从E2(包含表头)到数据末尾
+    data = Reference(analysis_sheet, min_col=5, min_row=2, max_row=len(person_counts) + 2)
+    pie_chart.add_data(data, titles_from_data=True)
+    pie_chart.set_categories(labels)
+    analysis_sheet.add_chart(pie_chart, "H12")
 
-    # 写入总标题，其宽度由日历中的日期数量决定
-    worksheet_gantt.merge_range(0, 2, 0, len(calendar_dates) + 1, '工作日', header_format)
-    worksheet_gantt.write('A1', '', _get_format(workbook, {'top': 1, 'left': 1}))
-    worksheet_gantt.write('B1', '', _get_format(workbook, {'top': 1, 'right': 1}))
+    # 5. 填充“原始数据”工作表
+    # 从DataFrame中移除临时的datetime列
+    df_for_sheet = df.drop(columns=['start_date_dt', 'end_date_dt'])
+    for r in dataframe_to_rows(df_for_sheet, index=False, header=True):
+        data_sheet.append(r)
 
-    # 写入列标题
-    worksheet_gantt.write('A2', '阶段', header_format)
-    worksheet_gantt.write('B2', '工作子项', header_format)
+    # 6. 绘制甘特图
+    # 颜色定义
+    colors = ['B7DEE8', 'FCD5B4', 'C4D79B', 'D8BFD8', 'F0C2C2', 'FFFACD']
+    light_colors = ['E8F5F8', 'FEF3E6', 'EFF5DA', 'F4ECF7', 'FBE9E7', 'FFFDE7']
+    unique_phases = df['阶段'].dropna().unique()
+    phase_color_map = {phase: {'task': colors[i % len(colors)], 'info': light_colors[i % len(light_colors)]} for
+                       i, phase in enumerate(unique_phases)}
+
+    # b. 样式定义
+    header_font = Font(bold=True)
+    center_align = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    thin_border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'),
+                         bottom=Side(style='thin'))
+
+    # c. 【修正】计算日历范围 - 只使用出现过的起止日期
+    valid_dates_df = df.dropna(subset=['start_date_dt', 'end_date_dt'])
+    calendar_dates = []
+    if not valid_dates_df.empty:
+        all_dates = set()
+        for _, row in valid_dates_df.iterrows():
+            all_dates.add(row['start_date_dt'])
+            all_dates.add(row['end_date_dt'])
+        calendar_dates = sorted(list(all_dates))
+
+    # d. 绘制表头
+    headers = ["阶段", "工作子项", "成果文件", "主责单位/负责人"]
+    for i, header in enumerate(headers):
+        cell = gantt_sheet.cell(row=2, column=i + 1, value=header)
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+
     for i, date in enumerate(calendar_dates):
-        worksheet_gantt.write(1, i + 2, date.strftime('%Y/%m/%d'), header_format)
+        cell = gantt_sheet.cell(row=2, column=len(headers) + 1 + i, value=date)
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+        cell.number_format = 'YYYY/MM/DD'
 
-    # 写入主体内容
-    row_offset = 2
-    for phase, group in df.groupby('阶段', sort=False):
-        start_row = row_offset
-        end_row = row_offset + len(group) - 1
+    gantt_sheet.merge_cells(start_row=1, start_column=len(headers) + 1, end_row=1,
+                            end_column=len(headers) + len(calendar_dates))
+    title_cell = gantt_sheet.cell(row=1, column=len(headers) + 1, value="工作日")
+    title_cell.font = header_font
+    title_cell.alignment = Alignment(horizontal="center", vertical="center")
 
-        # --- 修改: 为所有单元格定义统一的完整边框 ---
-        full_border_props = {'top': 1, 'bottom': 1, 'left': 1, 'right': 1}
+    # e. 【修正】按阶段分组并填充数据，以支持合并单元格
+    ordered_phases = df['阶段'].dropna().unique()
+    current_row = 3  # 数据从第3行开始
 
-        # 阶段单元格格式
-        phase_props = {
-            **full_border_props,
-            'bold': True, 'align': 'center', 'valign': 'vcenter', 'text_wrap': True
-        }
-        phase_format = _get_format(workbook, phase_props)
+    for phase in ordered_phases:
+        group = df[df['阶段'] == phase]
+        if group.empty:
+            continue
+
+        start_row_for_merge = current_row
+        end_row_for_merge = current_row + len(group) - 1
+
+        # 合并“阶段”单元格
         if len(group) > 1:
-            worksheet_gantt.merge_range(start_row, 0, end_row, 0, phase, phase_format)
-        else:
-            worksheet_gantt.write(start_row, 0, phase, phase_format)
+            gantt_sheet.merge_cells(start_row=start_row_for_merge, start_column=1, end_row=end_row_for_merge,
+                                    end_column=1)
 
-        for i in range(len(group)):
-            task = group.iloc[i]
-            current_row = row_offset + i
+        colorset = phase_color_map.get(phase, {'info': 'FFFFFF', 'task': 'D9D9D9'})
+        info_fill = PatternFill(start_color=colorset['info'], end_color=colorset['info'], fill_type="solid")
 
-            # 工作子项单元格格式
-            task_name_props = {**full_border_props, 'align': 'left', 'valign': 'vcenter'}
-            worksheet_gantt.write(current_row, 1, task['工作子项'], _get_format(workbook, task_name_props))
+        phase_cell = gantt_sheet.cell(row=start_row_for_merge, column=1, value=phase)
+        phase_cell.fill = info_fill
+        phase_cell.alignment = center_align
+        phase_cell.font = Font(bold=True)
 
-            # 日期单元格格式
-            for j, calendar_date in enumerate(calendar_dates):
-                # 从完整边框开始
-                props = {**full_border_props}
+        # 循环处理组内的每一行任务
+        for i, task in group.iterrows():
+            row_to_write = current_row + list(group.index).index(i)
 
-                # 如果在任务范围内，则添加背景色
-                if task['开始日期'] <= calendar_date <= task['结束日期']:
-                    props['bg_color'] = phase_color_map[task['阶段']]
+            gantt_sheet.cell(row=row_to_write, column=2, value=task['工作子项']).fill = info_fill
+            gantt_sheet.cell(row=row_to_write, column=3, value=task['成果文件']).fill = info_fill
+            gantt_sheet.cell(row=row_to_write, column=4, value=task['主责单位/负责人']).fill = info_fill
 
-                worksheet_gantt.write(current_row, j + 2, '', _get_format(workbook, props))
+            if pd.notna(task['start_date_dt']) and pd.notna(task['end_date_dt']):
+                task_fill = PatternFill(start_color=colorset['task'], end_color=colorset['task'], fill_type="solid")
+                for d_idx, cal_date in enumerate(calendar_dates):
+                    if task['start_date_dt'] <= cal_date <= task['end_date_dt']:
+                        gantt_sheet.cell(row=row_to_write, column=len(headers) + 1 + d_idx).fill = task_fill
 
-        row_offset += len(group)
+        current_row += len(group)
 
-    worksheet_gantt.set_column('A:A', 15)
-    worksheet_gantt.set_column('B:B', 30)
-    worksheet_gantt.set_column(2, len(calendar_dates) + 1, 11)
-    worksheet_gantt.freeze_panes(2, 2)
+    # f. 添加边框和冻结窗格
+    max_row = current_row - 1
+    max_col = len(headers) + len(calendar_dates)
+    if max_row > 0 and max_col > 0:
+        for row in gantt_sheet.iter_rows(min_row=1, max_row=max_row, max_col=max_col):
+            for cell in row:
+                cell.border = thin_border
+    gantt_sheet.freeze_panes = 'E3'
 
-    # --- 写入原始数据 ---
-    df_original = pd.DataFrame(work_data)
-    data_header_format = _get_format(workbook, {'bold': True, 'fg_color': '#D9D9D9'})
-    for col_num, value in enumerate(df_original.columns.values):
-        worksheet_data.write(0, col_num, value, data_header_format)
-    for row_num, row_data in enumerate(df_original.values):
-        worksheet_data.write_row(row_num + 1, 0, row_data)
-    worksheet_data.autofit()
+    # g. 设置列宽
+    gantt_sheet.column_dimensions['A'].width = 15
+    gantt_sheet.column_dimensions['B'].width = 30
+    gantt_sheet.column_dimensions['C'].width = 25
+    gantt_sheet.column_dimensions['D'].width = 20
+    for i in range(len(calendar_dates)):
+        gantt_sheet.column_dimensions[chr(ord('E') + i)].width = 12
 
-    try:
-        workbook.close()
-        print(f"甘特图已成功生成: {output_path}")
-        return True
-    except xlsxwriter.exceptions.FileCreateError as e:
-        print(f"错误: 无法写入Excel文件。请检查文件是否被其他程序占用。 - {e}")
-        return False
+    # --- 修正代码结束 ---
+
+    buffer = io.BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+    return buffer
+
