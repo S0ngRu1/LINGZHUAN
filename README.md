@@ -80,7 +80,7 @@ Docker 和 Docker Compose (通常 Docker Desktop 会自带)
 
     将本项目的代码下载到您的本地电脑。
     ```Bash
-        git clone https://github.com/your-username/lingzhuan.git
+        git clone https://github.com/S0ngRu1/LINGZHUAN.git
         cd lingzhuan
     ```
 
@@ -117,6 +117,17 @@ Docker 和 Docker Compose (通常 Docker Desktop 会自带)
 ```Bash
   docker-compose down
 ```
+
+
+### 直接加载镜像运行
+
+#### 运行镜像
+
+```bash
+  docker load -i lingzhuan.tar
+  docker run -d -p 5000:5000 -e MOONSHOT_API_KEY="填写自己的API_KEY" lingzhuan-app:latest
+```
+
 
 ### 如何使用
 
