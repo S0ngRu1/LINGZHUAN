@@ -1,4 +1,6 @@
 import os
+from dotenv import load_dotenv
+load_dotenv()
 
 from loguru import logger
 from datetime import datetime
@@ -50,7 +52,6 @@ def parse_file():
         file_extension = file_extension.lower()
         file.save(filepath)
         try:
-            parsed_data = None
             if file_extension in ['.xlsx', '.xls']:
                 logger.info("检测到Excel文件，进行直接解析...")
                 parsed_data = parse_excel_to_records(filepath)
@@ -173,4 +174,4 @@ def compare_summaries_endpoint():
 
 if __name__ == '__main__':
     # 在实际部署时，请关闭debug模式
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=False)

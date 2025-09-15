@@ -1,0 +1,12 @@
+version: '3.10'
+
+services:
+  lingzhuan-app:
+    build: .
+    container_name: lingzhuan_service
+    ports:
+      - "5000:5000"
+    environment:
+      - API_PROVIDER=${API_PROVIDER}
+      - API_KEY=${API_KEY}
+    restart: unless-stopped
