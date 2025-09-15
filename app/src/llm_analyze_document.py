@@ -4,6 +4,7 @@
 # @File : llm_analyze_document.py
 
 import json
+from loguru import logger
 from app.config import settings
 from openai import OpenAI
 from typing import Dict, Optional
@@ -64,7 +65,7 @@ def analyze_single_document(doc_content: str) -> Optional[Dict]:
         )
         return json.loads(response.choices[0].message.content)
     except Exception as e:
-        print(f"分析单个文档时出错: {e}")
+        logger(f"分析单个文档时出错: {e}")
         return None
 
 def compare_summaries(summary1: str, summary2: str) -> Optional[Dict]:
@@ -103,5 +104,5 @@ def compare_summaries(summary1: str, summary2: str) -> Optional[Dict]:
         )
         return json.loads(response.choices[0].message.content)
     except Exception as e:
-        print(f"对比摘要时出错: {e}")
+        logger(f"对比摘要时出错: {e}")
         return None

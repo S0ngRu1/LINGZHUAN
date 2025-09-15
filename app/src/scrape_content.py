@@ -4,6 +4,7 @@ from urllib.parse import urlparse, quote
 import re
 import json
 import time
+from loguru import logger
 
 
 # --- 私有辅助函数：负责解析特定网站 ---
@@ -13,7 +14,7 @@ def _scrape_shaanxi(soup: BeautifulSoup) -> str:
     # 尝试解析第一种布局 (2018版)
     is_page1 = bool(soup.find("div", class_="biaoti")) and bool(soup.find("div", class_="TRS_UEDITOR"))
     if is_page1:
-        print("检测到陕西网站布局 1 (2018版)...")
+        logger.info("检测到陕西网站布局 1 (2018版)...")
         content_tag = soup.find("div", class_="view TRS_UEDITOR trs_paper_default trs_word")
         if content_tag:
             p_tags = content_tag.find_all("p")
@@ -23,7 +24,7 @@ def _scrape_shaanxi(soup: BeautifulSoup) -> str:
     # 如果不是第一种，尝试解析第二种布局 (2023版)
     is_page2 = bool(soup.find("div", class_="public-title-nav")) and bool(soup.find("div", class_="text_content"))
     if is_page2:
-        print("检测到陕西网站布局 2 (2023版)...")
+        logger.info("检测到陕西网站布局 2 (2023版)...")
         content_tag = soup.find("div", class_="text_content")
         if content_tag:
             p_tags = content_tag.find_all("p")
@@ -32,7 +33,7 @@ def _scrape_shaanxi(soup: BeautifulSoup) -> str:
         return text
 
     # 如果以上精确解析都失败，则回退到通用选择器
-    print("未能使用精确选择器找到内容，正在尝试通用布局选择器...")
+    logger.warning("未能使用精确选择器找到内容，正在尝试通用布局选择器...")
     general_selectors = 'div.text_content, div.main-content, div#zcwjk_container'
     content_div = soup.select_one(general_selectors)
     if content_div:
@@ -59,10 +60,10 @@ def _scrape_sasac(url: str) -> str:
         # 1. 从URL提取page_id
         id_match = re.search(r"[?&]id=(\d+)", url)
         if not id_match:
-            print(f"警告: 在国资委URL中未找到id参数: {url}")
+            logger.warning(f"警告: 在国资委URL中未找到id参数: {url}")
             return ""
         page_id = id_match.group(1)
-        print(f"从国资委URL中提取到ID: {page_id}")
+        logger.info(f"从国资委URL中提取到ID: {page_id}")
 
         # 2. 构造请求参数并发起API请求
         params = {"goPage": 1, "orderBy": [{"orderBy": "orderTime", "reverse": True}], "pageSize": 20,
@@ -96,7 +97,7 @@ def _scrape_sasac(url: str) -> str:
         return _clean_sasac_html(html_content)
 
     except Exception as e:
-        print(f"错误: 抓取国资委内容失败 (URL: {url}): {e}")
+        logger.error(f"错误: 抓取国资委内容失败 (URL: {url}): {e}")
         return ""
 
 
@@ -108,13 +109,13 @@ def _scrape_mot(soup: BeautifulSoup) -> str:
     # 优先找旧页面的TRS_UEDITOR容器
     old_container = soup.find("div", class_="view TRS_UEDITOR")
     if old_container:
-        print("检测到交通运输部网站布局 1 (旧版)...")
+        logger.info("检测到交通运输部网站布局 1 (旧版)...")
         content_container = old_container
     else:
         # 找不到再找新页面的Zoom容器
         new_container = soup.find("div", id="Zoom")
         if new_container:
-            print("检测到交通运输部网站布局 2 (新版)...")
+            logger.info("检测到交通运输部网站布局 2 (新版)...")
             content_container = new_container
 
     # 如果找到了特定的内容容器，则精确提取
@@ -129,7 +130,7 @@ def _scrape_mot(soup: BeautifulSoup) -> str:
         return "\n".join(full_content)
 
     # 如果都找不到，回退到最初的通用选择器
-    print("未能使用精确选择器找到内容，正在尝试通用布局选择器...")
+    logger.warning("未能使用精确选择器找到内容，正在尝试通用布局选择器...")
     general_container = soup.select_one('div.xxgk_content')
     if general_container:
         return general_container.get_text(separator='\n', strip=True)
@@ -171,16 +172,16 @@ def scrape_content(url: str) -> str:
             text = _scrape_mot(soup)
 
         if text:
-            print(f"成功抓取URL内容: {url}")
+            logger.info(f"成功抓取URL内容: {url}")
             return text
         else:
-            print(f"警告: 在 {url} 上未找到任何预期的内容容器。将尝试抓取整个页面body作为备用。")
+            logger.warning(f"警告: 在 {url} 上未找到任何预期的内容容器。将尝试抓取整个页面body作为备用。")
             body = soup.find('body')
             return body.get_text(separator='\n', strip=True) if body else ""
 
     except requests.RequestException as e:
-        print(f"错误: 抓取URL时发生网络错误 {url}: {e}")
+        logger.error(f"错误: 抓取URL时发生网络错误 {url}: {e}")
         return ""
     except Exception as e:
-        print(f"错误: 解析URL时发生未知错误 {url}: {e}")
+        logger.error(f"错误: 解析URL时发生未知错误 {url}: {e}")
         return ""

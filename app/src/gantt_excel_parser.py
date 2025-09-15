@@ -4,6 +4,7 @@
 # @File : gantt_excel_parser.py
 
 import re
+from loguru import logger
 from datetime import datetime
 import pandas as pd
 from typing import Optional,List,Dict
