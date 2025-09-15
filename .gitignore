@@ -18,3 +18,4 @@ resources/*.log
 *.png   # 避免甘特图图片进入版本控制（若需归档可移除该行）
 *.xlsx
 .idea
+*.tar
