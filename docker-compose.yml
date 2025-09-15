@@ -1,9 +1,11 @@
 services:
   lingzhuan-app:
     build: .
+    image: lingzhuan-app:latest
     container_name: lingzhuan_service
     ports:
       - "5000:5000"
     environment:
+      # 这会从项目根目录的 .env 文件中自动加载 MOONSHOT_API_KEY
       - MOONSHOT_API_KEY=${MOONSHOT_API_KEY}
     restart: unless-stopped
