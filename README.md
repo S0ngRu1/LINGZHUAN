@@ -90,8 +90,7 @@ Docker 和 Docker Compose (通常 Docker Desktop 会自带)
 
     ```text
     # .env 文件内容示例
-    API_PROVIDER="OpenAI"
-    API_KEY="sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    MOONSHOT_API_KEY="sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
     请将 sk-xxxxxxxxxx 替换为您自己的真实 API Key。程序将自动读取此文件中的配置。
     ```
 3. 启动应用
