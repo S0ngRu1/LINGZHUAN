@@ -8,7 +8,7 @@ WORKDIR /app
 COPY requirements.txt .
 
 # 安装依赖，--no-cache-dir 选项可以减小镜像体积
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 
 # 复制项目所有文件到工作目录
 COPY . .
