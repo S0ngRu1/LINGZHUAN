@@ -1,5 +1,3 @@
-version: '3.10'
-
 services:
   lingzhuan-app:
     build: .
@@ -7,6 +5,5 @@ services:
     ports:
       - "5000:5000"
     environment:
-      - API_PROVIDER=${API_PROVIDER}
-      - API_KEY=${API_KEY}
+      - MOONSHOT_API_KEY=${MOONSHOT_API_KEY}
     restart: unless-stopped
