@@ -17,4 +17,4 @@ COPY . .
 EXPOSE 5000
 
 # 容器启动时运行的命令
-CMD ["gunicorn", "--workers", "4", "--bind", "0.0.0.0:5000", "server:app"]
+CMD ["gunicorn", "--workers", "4", "--bind", "0.0.0.0:5000", "--timeout", "120", "server:app"]
