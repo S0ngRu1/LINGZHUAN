@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 # @Time : 2025/9/5 17:49
-# @Author : CSR
 # @File : llm_parser.py
-
-# app/src/llm_parser.py
+"""
+甘特图输入文本文件 大模型解析
+"""
 
 import json
 from loguru import logger

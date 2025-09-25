@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 # @Time : 2025/9/5 17:53
-# @Author : CSR
 # @File : file_handler.py
 
+"""
+智能读取多种格式的文件内容（txt, docx, pdf）
+"""
 import os
 from loguru import logger
 from typing import Optional

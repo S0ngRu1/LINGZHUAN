@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 # @Time : 2025/9/15 10:10
-# @Author : CSR
 # @File : gantt_excel_parser.py
 
+"""
+甘特图功能的表格提取
+"""
 import re
 from loguru import logger
 from datetime import datetime

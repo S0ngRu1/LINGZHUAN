@@ -1,7 +1,11 @@
 # -*- coding: utf-8 -*-
 # @Time : 2025/9/5 17:48
-# @Author : CSR
 # @File : gantt_generator.py
+
+"""
+甘特图生成代码
+"""
+
 
 from typing import List, Dict
 import pandas as pd

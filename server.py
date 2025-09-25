@@ -1,3 +1,7 @@
+"""
+各种服务的定义
+"""
+
 import os
 from dotenv import load_dotenv
 load_dotenv()
@@ -170,6 +174,14 @@ def compare_summaries_endpoint():
     except Exception as e:
         print(f"对比摘要时发生错误: {e}")
         return jsonify({"error": f"服务器内部错误: {e}"}), 500
+
+
+
+## 功能扩展：自己上传多个文件进行总结对比分析
+### 添加对应的接口
+# @app.route('/api/llm-analyze-document-v2', methods=['POST'])
+# def llm_analyze_document_v2():
+#     pass
 
 
 if __name__ == '__main__':

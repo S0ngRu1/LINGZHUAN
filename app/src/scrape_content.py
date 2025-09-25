@@ -6,8 +6,10 @@ import json
 import time
 from loguru import logger
 
+"""
+解析网页代码
+"""
 
-# --- 私有辅助函数：负责解析特定网站 ---
 def _scrape_shaanxi(soup: BeautifulSoup) -> str:
     """专门负责解析陕西省政府网站不同版式页面的函数。"""
     text = ""
@@ -137,8 +139,6 @@ def _scrape_mot(soup: BeautifulSoup) -> str:
 
     return ""
 
-
-# --- 公共主函数 ---
 
 def scrape_content(url: str) -> str:
     """

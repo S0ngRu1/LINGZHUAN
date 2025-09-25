@@ -1,7 +1,10 @@
 # -*- coding: utf-8 -*-
 # @Time : 2025/9/12 17:54
-# @Author : CSR
 # @File : llm_analyze_document.py
+"""
+调用大模型进行文档分析
+"""
+
 
 import json
 from loguru import logger

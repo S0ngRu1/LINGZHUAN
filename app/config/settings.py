@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 # @Time : 2025/9/5 15:45
-# @Author : CSR
 # @File : settings.py
+"""
+相关配置
+"""
 import os
 
 # --- Moonshot AI API 配置 ---

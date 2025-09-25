@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 # @Time : 2025/9/12 19:22
-# @Author : CSR
 # @File : searcher.py
+"""
+网站的搜索结果
+"""
 from loguru import logger
 
 def search_website(website: str, keyword: str) -> list:
@@ -9,7 +11,7 @@ def search_website(website: str, keyword: str) -> list:
     根据网站标识和关键词，返回固定的测试结果列表。
     参数 'keyword' 在此版本中被忽略。
     """
-    logger.info(f"收到模拟搜索请求: 网站='{website}', 关键词='{keyword}'")
+    logger.info(f"收到搜索请求: 网站='{website}', 关键词='{keyword}'")
     if website == "shaanxi":
         return get_mock_shaanxi_results()
     elif website == "sasac":
